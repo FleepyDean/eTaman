@@ -402,12 +402,22 @@ const saveUserToLocalStorage = (user) => {
   }
 };
 
+const generateVerificationCode = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+const updateUserObject = (identifier, updates) => {
+  const index = USERS.findIndex((u) => u.username === identifier || u.email?.toLowerCase() === identifier?.toLowerCase());
+  if (index === -1) return null;
+  USERS[index] = { ...USERS[index], ...updates };
+  saveUserToLocalStorage(USERS[index]);
+  return USERS[index];
+};
+
 USERS.push(...loadStoredUsers());
 
 // ==========================================
 // KOMPONEN: HALAMAN LOG MASUK
 // ==========================================
-function LoginPage({ onLogin, onSwitchToRegister }) {
+function LoginPage({ onLogin, onSwitchToRegister, onSwitchToForgot, onSwitchToVerify, onSwitchToResend }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -421,8 +431,12 @@ function LoginPage({ onLogin, onSwitchToRegister }) {
     setTimeout(() => {
       const user = USERS.find(u => u.username === username.trim() && u.password === password);
       if (user) {
-        sessionStorage.setItem('etaman_user', JSON.stringify(user));
-        onLogin(user);
+        if (user.email && user.emailVerified === false) {
+          setError('Sila sahkan emel anda terlebih dahulu.');
+        } else {
+          sessionStorage.setItem('etaman_user', JSON.stringify(user));
+          onLogin(user);
+        }
       } else {
         setError('Nama pengguna atau kata laluan tidak sah.');
       }
@@ -516,6 +530,11 @@ function LoginPage({ onLogin, onSwitchToRegister }) {
               {loading ? '...' : 'Daftar Akaun Baru'}
             </button>
           </form>
+          <div className="mt-4 text-center text-xs text-slate-500 space-y-2">
+            <button type="button" onClick={onSwitchToForgot} className="underline text-blue-600 hover:text-blue-800">Terlupa Kata Laluan?</button>
+            <button type="button" onClick={onSwitchToVerify} className="underline text-blue-600 hover:text-blue-800">Sahkan Emel</button>
+            <button type="button" onClick={onSwitchToResend} className="underline text-blue-600 hover:text-blue-800">Hantar Semula Kod Pengesahan</button>
+          </div>
           
 
           {/* Role hint */}
@@ -544,16 +563,24 @@ function LoginPage({ onLogin, onSwitchToRegister }) {
 
 function RegisterPage({ onBack }) {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [registered, setRegistered] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
-    if (!username.trim() || !password || !confirmPassword) {
+    setSuccessMessage('');
+    if (!username.trim() || !email.trim() || !password || !confirmPassword) {
       setError('Sila lengkapkan semua medan.');
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setError('Sila masukkan emel yang sah.');
       return;
     }
     if (password !== confirmPassword) {
@@ -563,15 +590,28 @@ function RegisterPage({ onBack }) {
     setLoading(true);
     setTimeout(async () => {
       const uname = username.trim();
+      const emailAddress = email.trim().toLowerCase();
       
-      const exists = USERS.some(u => u.username === uname);
+      const exists = USERS.some(u => u.username === uname || (u.email && u.email.toLowerCase() === emailAddress));
       if (exists) {
-        setError('Nama pengguna telah wujud. Sila pilih yang lain.');
+        setError('Nama pengguna atau emel telah wujud. Sila pilih yang lain.');
         setLoading(false);
         return;
       }
 
-      const newUser = { username: uname, password, role: 'PBT', displayName: uname, pbtCode: null };
+      const verificationCode = generateVerificationCode();
+      const newUser = {
+        username: uname,
+        password,
+        role: 'PBT',
+        displayName: uname,
+        pbtCode: null,
+        email: emailAddress,
+        office: '',
+        employeeNumber: '',
+        emailVerified: false,
+        verificationCode
+      };
       let persistedUser = newUser;
       let savedToDb = false;
 
@@ -583,7 +623,7 @@ function RegisterPage({ onBack }) {
         });
         const result = await response.json();
         if (response.ok && result.success) {
-          persistedUser = { ...newUser, ...result.data };
+          persistedUser = { ...newUser, ...result.data, emailVerified: false, verificationCode };
           savedToDb = true;
         } else {
           console.warn('User registration API failed', result);
@@ -596,8 +636,8 @@ function RegisterPage({ onBack }) {
       saveUserToLocalStorage(persistedUser);
 
       setLoading(false);
-      document.getElementById('success-message').classList.remove('hidden');
-      document.getElementById('register-button').classList.add('hidden');
+      setRegistered(true);
+      setSuccessMessage(`Pendaftaran berjaya! Kod pengesahan emel anda ialah ${verificationCode}. Sila sahkan emel sebelum log masuk.`);
     }, 500);
   };
 
@@ -615,8 +655,8 @@ function RegisterPage({ onBack }) {
           <h2 className="text-lg font-semibold text-slate-800 mb-6 flex items-center gap-2">
             <User className="w-4 h-4 text-blue-600" /> Daftar Akaun Baru
           </h2>
-          <p id="success-message" className="text-sm text-green-600 mb-4 hidden">Pendaftaran akaun anda telah berjaya! Sila log masuk.</p>
-          <p id="error-message" className="text-sm text-red-600 mb-4 hidden">Pendaftaran akaun anda tidak berjaya. Sila cuba semula.</p>
+          {successMessage && <div className="text-sm text-green-600 mb-4">{successMessage}</div>}
+          {error && <div className="text-sm text-red-600 mb-4">{error}</div>}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1">
               <label className="text-sm font-medium text-slate-700">Nama Pengguna</label>
@@ -628,6 +668,19 @@ function RegisterPage({ onBack }) {
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 border border-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                   placeholder="Masukkan nama pengguna"
+                  required
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700">Emel</label>
+              <div className="relative">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-4 pr-4 py-2.5 border border-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                  placeholder="Masukkan emel anda"
                   required
                 />
               </div>
@@ -669,12 +722,12 @@ function RegisterPage({ onBack }) {
             <div className="grid gap-3">
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || registered}
                 id="register-button"
                 className="w-full flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 text-white py-2.5 text-sm font-semibold transition-colors disabled:bg-slate-400"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <User className="w-4 h-4" />}
-                {loading ? 'Memproses...' : 'Daftar'}
+                {loading ? 'Memproses...' : registered ? 'Terdaftar' : 'Daftar'}
               </button>
               <button
                 type="button"
@@ -682,6 +735,313 @@ function RegisterPage({ onBack }) {
                 className="w-full flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 text-sm font-semibold transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
+                Kembali ke Log Masuk
+              </button>
+            </div>
+          </form>
+        </div>
+        <p className="text-center text-slate-600 text-xs mt-6">Hak Cipta © 2026 Jabatan Perancangan Bandar Johor</p>
+      </div>
+    </div>
+  );
+}
+
+function VerifyEmailPage({ onBack }) {
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [message, setMessage] = useState('');
+  const [step, setStep] = useState('request');
+
+  const handleSendCode = (e) => {
+    e.preventDefault();
+    setMessage('');
+    const match = USERS.find((u) => u.username === usernameOrEmail.trim() || u.email?.toLowerCase() === usernameOrEmail.trim().toLowerCase());
+    if (!match) {
+      setMessage('Nama pengguna atau emel tidak dijumpai.');
+      return;
+    }
+    if (!match.email) {
+      setMessage('Akaun ini tidak mempunyai emel berdaftar.');
+      return;
+    }
+    const code = generateVerificationCode();
+    updateUserObject(match.username, { verificationCode: code, emailVerified: false });
+    setVerificationCode('');
+    setMessage(`Kod pengesahan dihantar ke emel anda. Kod sementara: ${code}`);
+    setStep('verify');
+  };
+
+  const handleVerify = (e) => {
+    e.preventDefault();
+    setMessage('');
+    const match = USERS.find((u) => u.username === usernameOrEmail.trim() || u.email?.toLowerCase() === usernameOrEmail.trim().toLowerCase());
+    if (!match) {
+      setMessage('Nama pengguna atau emel tidak dijumpai.');
+      return;
+    }
+    if (!verificationCode.trim()) {
+      setMessage('Sila masukkan kod pengesahan.');
+      return;
+    }
+    if (match.verificationCode !== verificationCode.trim()) {
+      setMessage('Kod pengesahan tidak sah.');
+      return;
+    }
+    updateUserObject(match.username, { emailVerified: true, verificationCode: null });
+    setMessage('Emel anda telah disahkan. Sila log masuk.');
+    setStep('done');
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 mb-4">
+            <TreePineIcon className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-white tracking-wide">eTaman</h1>
+          <p className="text-slate-400 text-sm mt-1 uppercase tracking-wider">Sahkan Emel</p>
+        </div>
+        <div className="bg-white p-8 shadow-2xl">
+          <h2 className="text-lg font-semibold text-slate-800 mb-6">Sahkan Emel Akaun</h2>
+          {message && <div className="text-sm text-slate-700 mb-4">{message}</div>}
+          <form onSubmit={step === 'request' ? handleSendCode : handleVerify} className="space-y-5">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700">Nama Pengguna atau Emel</label>
+              <input
+                type="text"
+                value={usernameOrEmail}
+                onChange={(e) => setUsernameOrEmail(e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                placeholder="Masukkan nama pengguna atau emel"
+                required
+              />
+            </div>
+            {step === 'verify' && (
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">Kod Pengesahan</label>
+                <input
+                  type="text"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                  placeholder="Masukkan kod pengesahan"
+                  required
+                />
+              </div>
+            )}
+            <div className="grid gap-3">
+              <button type="submit" className="w-full bg-blue-700 hover:bg-blue-800 text-white py-2.5 text-sm font-semibold transition-colors">
+                {step === 'request' ? 'Hantar Kod Pengesahan' : 'Sahkan Emel'}
+              </button>
+              <button type="button" onClick={onBack} className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 text-sm font-semibold transition-colors">
+                Kembali ke Log Masuk
+              </button>
+            </div>
+          </form>
+        </div>
+        <p className="text-center text-slate-600 text-xs mt-6">Hak Cipta © 2026 Jabatan Perancangan Bandar Johor</p>
+      </div>
+    </div>
+  );
+}
+
+function ResendVerificationPage({ onBack }) {
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleResend = (e) => {
+    e.preventDefault();
+    setMessage('');
+    setError('');
+    setLoading(true);
+
+    setTimeout(() => {
+      const match = USERS.find((u) => u.username === usernameOrEmail.trim() || u.email?.toLowerCase() === usernameOrEmail.trim().toLowerCase());
+      if (!match) {
+        setError('Nama pengguna atau emel tidak dijumpai.');
+        setLoading(false);
+        return;
+      }
+      if (!match.email) {
+        setError('Akaun ini tidak mempunyai emel berdaftar.');
+        setLoading(false);
+        return;
+      }
+      if (match.emailVerified) {
+        setMessage('Emel anda telah disahkan. Sila log masuk.');
+        setLoading(false);
+        return;
+      }
+
+      const code = generateVerificationCode();
+      updateUserObject(match.username, { verificationCode: code, emailVerified: false });
+      setMessage(`Kod pengesahan baru dihantar ke emel anda. Kod sementara: ${code}`);
+      setLoading(false);
+    }, 500);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 mb-4">
+            <TreePineIcon className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-white tracking-wide">eTaman</h1>
+          <p className="text-slate-400 text-sm mt-1 uppercase tracking-wider">Hantar Semula Kod</p>
+        </div>
+        <div className="bg-white p-8 shadow-2xl">
+          <h2 className="text-lg font-semibold text-slate-800 mb-6">Hantar Semula Kod Pengesahan Emel</h2>
+          {message && <div className="text-sm text-slate-700 mb-4">{message}</div>}
+          {error && <div className="text-sm text-red-600 mb-4">{error}</div>}
+          <form onSubmit={handleResend} className="space-y-5">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700">Nama Pengguna atau Emel</label>
+              <input
+                type="text"
+                value={usernameOrEmail}
+                onChange={(e) => setUsernameOrEmail(e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                placeholder="Masukkan nama pengguna atau emel"
+                required
+              />
+            </div>
+            <div className="grid gap-3">
+              <button type="submit" disabled={loading} className="w-full bg-blue-700 hover:bg-blue-800 text-white py-2.5 text-sm font-semibold transition-colors disabled:bg-slate-400">
+                {loading ? 'Menghantar...' : 'Hantar Semula Kod'}
+              </button>
+              <button type="button" onClick={onBack} className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 text-sm font-semibold transition-colors">
+                Kembali ke Log Masuk
+              </button>
+            </div>
+          </form>
+        </div>
+        <p className="text-center text-slate-600 text-xs mt-6">Hak Cipta © 2026 Jabatan Perancangan Bandar Johor</p>
+      </div>
+    </div>
+  );
+}
+
+function ForgotPasswordPage({ onBack }) {
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const [step, setStep] = useState('request');
+  const [resetCode, setResetCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const handleRequestReset = (e) => {
+    e.preventDefault();
+    setMessage('');
+    const match = USERS.find((u) => u.username === usernameOrEmail.trim() || u.email?.toLowerCase() === usernameOrEmail.trim().toLowerCase());
+    if (!match) {
+      setMessage('Nama pengguna atau emel tidak dijumpai.');
+      return;
+    }
+    const code = generateVerificationCode();
+    updateUserObject(match.username, { resetCode: code });
+    setMessage(`Kod tetapan semula dihantar. Kod sementara: ${code}`);
+    setStep('reset');
+  };
+
+  const handleResetPassword = (e) => {
+    e.preventDefault();
+    setMessage('');
+    if (!resetCode.trim()) {
+      setMessage('Sila masukkan kod tetapan semula.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setMessage('Kata laluan baru mestilah sekurang-kurangnya 6 aksara.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setMessage('Kata laluan tidak sepadan.');
+      return;
+    }
+    const match = USERS.find((u) => u.username === usernameOrEmail.trim() || u.email?.toLowerCase() === usernameOrEmail.trim().toLowerCase());
+    if (!match || match.resetCode !== resetCode.trim()) {
+      setMessage('Kod tetapan semula tidak sah atau tidak dijumpai.');
+      return;
+    }
+    updateUserObject(match.username, { password: newPassword, resetCode: null });
+    setMessage('Kata laluan anda berjaya ditetapkan semula. Sila log masuk.');
+    setStep('done');
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 mb-4">
+            <TreePineIcon className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-white tracking-wide">eTaman</h1>
+          <p className="text-slate-400 text-sm mt-1 uppercase tracking-wider">Tukar Kata Laluan</p>
+        </div>
+        <div className="bg-white p-8 shadow-2xl">
+          <h2 className="text-lg font-semibold text-slate-800 mb-6">Tetapan Semula Kata Laluan</h2>
+          {message && <div className="text-sm text-slate-700 mb-4">{message}</div>}
+          <form onSubmit={step === 'request' ? handleRequestReset : step === 'reset' ? handleResetPassword : (e) => e.preventDefault()} className="space-y-5">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700">Nama Pengguna atau Emel</label>
+              <input
+                type="text"
+                value={usernameOrEmail}
+                onChange={(e) => setUsernameOrEmail(e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                placeholder="Masukkan nama pengguna atau emel"
+                required
+                disabled={step !== 'request'}
+              />
+            </div>
+            {step === 'reset' && (
+              <>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Kod Tetapan Semula</label>
+                  <input
+                    type="text"
+                    value={resetCode}
+                    onChange={(e) => setResetCode(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                    placeholder="Masukkan kod tetapan semula"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Kata Laluan Baru</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                    placeholder="Masukkan kata laluan baru"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Sahkan Kata Laluan Baru</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                    placeholder="Ulang kata laluan baru"
+                    required
+                  />
+                </div>
+              </>
+            )}
+            <div className="grid gap-3">
+              {step !== 'done' && (
+                <button type="submit" className="w-full bg-blue-700 hover:bg-blue-800 text-white py-2.5 text-sm font-semibold transition-colors">
+                  {step === 'request' ? 'Hantar Kod Tetapan Semula' : 'Tetapkan Semula Kata Laluan'}
+                </button>
+              )}
+              <button type="button" onClick={onBack} className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 text-sm font-semibold transition-colors">
                 Kembali ke Log Masuk
               </button>
             </div>
@@ -739,7 +1099,7 @@ export default function SistemPengurusanTaman() {
 
   // Profile Edit State
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [profileFormData, setProfileFormData] = useState({displayName: '', email: '', password: ''});
+  const [profileFormData, setProfileFormData] = useState({displayName: '', email: '', password: '', employeeNumber: '', office: ''});
 
   // Fetch data from Django API
   useEffect(() => {
@@ -1114,9 +1474,28 @@ export default function SistemPengurusanTaman() {
   }, [tamanList, searchQuery, filterDaerah, filterJenis, filterPBT, filterKemudahan, currentUser]);
 
   if (!currentUser) {
-    return authMode === 'register'
-      ? <RegisterPage onBack={() => setAuthMode('login')} />
-      : <LoginPage onLogin={setCurrentUser} onSwitchToRegister={() => setAuthMode('register')} />;
+    if (authMode === 'register') {
+      return <RegisterPage onBack={() => setAuthMode('login')} />;
+    }
+    if (authMode === 'forgot') {
+      return <ForgotPasswordPage onBack={() => setAuthMode('login')} />;
+    }
+    if (authMode === 'verify') {
+      return <VerifyEmailPage onBack={() => setAuthMode('login')} />;
+    }
+    if (authMode === 'resend') {
+      return <ResendVerificationPage onBack={() => setAuthMode('login')} />;
+    }
+
+    return (
+      <LoginPage
+        onLogin={setCurrentUser}
+        onSwitchToRegister={() => setAuthMode('register')}
+        onSwitchToForgot={() => setAuthMode('forgot')}
+        onSwitchToVerify={() => setAuthMode('verify')}
+        onSwitchToResend={() => setAuthMode('resend')}
+      />
+    );
   }
 
   const isAdmin = currentUser.role === 'JLNJ_ADMIN';
@@ -1131,7 +1510,9 @@ export default function SistemPengurusanTaman() {
     setProfileFormData({
       displayName: currentUser.displayName || '',
       email: currentUser.email || '',
-      password: ''
+      password: '',
+      employeeNumber: currentUser.employeeNumber || '',
+      office: currentUser.office || ''
     });
     setShowProfileModal(true);
   };
@@ -1143,11 +1524,23 @@ export default function SistemPengurusanTaman() {
         alert('Sila masukkan nama paparan.');
         return;
       }
+
+      if (currentUser.role === 'JLNJ_ADMIN' && !profileFormData.employeeNumber.trim()) {
+        alert('Sila masukkan nombor pekerja.');
+        return;
+      }
+
+      if (currentUser.role === 'PBT' && !profileFormData.office.trim()) {
+        alert('Sila masukkan pejabat.');
+        return;
+      }
       
       const updatedUser = {
         ...currentUser,
         displayName: profileFormData.displayName,
-        email: profileFormData.email || currentUser.email
+        email: profileFormData.email || currentUser.email,
+        employeeNumber: profileFormData.employeeNumber || currentUser.employeeNumber,
+        office: profileFormData.office || currentUser.office
       };
       
       if (profileFormData.password && profileFormData.password.length >= 6) {
@@ -1576,6 +1969,16 @@ export default function SistemPengurusanTaman() {
                   onChange={(e) => setProfileFormData({...profileFormData, displayName: e.target.value})}
                   className="w-full px-4 py-2 border border-slate-300 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   placeholder="Masukkan nama paparan"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">{isAdmin ? 'Nombor Pekerja' : 'Pejabat'}</label>
+                <input
+                  type="text"
+                  value={isAdmin ? profileFormData.employeeNumber : profileFormData.office}
+                  onChange={(e) => setProfileFormData({...profileFormData, [isAdmin ? 'employeeNumber' : 'office']: e.target.value})}
+                  className="w-full px-4 py-2 border border-slate-300 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  placeholder={isAdmin ? 'Masukkan nombor pekerja' : 'Masukkan pejabat'}
                 />
               </div>
               <div>
