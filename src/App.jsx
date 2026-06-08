@@ -11,7 +11,7 @@ import {
   XSquare, Download, Car, Tent, Home, Baby,
   Sparkles, Bot, Loader2, AlignLeft, X, Upload, AlertCircle, ArrowLeft,
   Building2, Check, XIcon, Toilet, ParkingSquare, PlayCircle,
-  TreePineIcon, Settings, LogIn, LogOut, User, Shield, Lock
+  TreePineIcon, Settings, LogIn, LogOut, User, Shield, Lock, CheckCircle
 } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
@@ -705,6 +705,9 @@ export default function SistemPengurusanTaman() {
   const [tamanToDelete, setTamanToDelete] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Toast State
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
   // Chatbot State
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([
@@ -781,6 +784,8 @@ export default function SistemPengurusanTaman() {
         const result = await response.json();
         if (result.success) {
           setTamanList(tamanList.map(t => t.id === editingId ? result.data : t));
+          setToast({ show: true, message: 'Rekod taman telah berjaya dikemaskini', type: 'success' });
+          setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
         }
       } else {
         // Create new taman
@@ -792,6 +797,8 @@ export default function SistemPengurusanTaman() {
         const result = await response.json();
         if (result.success) {
           setTamanList([...tamanList, result.data]);
+          setToast({ show: true, message: 'Rekod taman baharu telah berjaya ditambah', type: 'success' });
+          setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
         }
       }
       setActiveTab('senarai');
@@ -814,6 +821,8 @@ export default function SistemPengurusanTaman() {
       setTamanList(tamanList.filter(t => !selectedIds.includes(t.id)));
       setSelectedIds([]);
       setShowBulkDeleteModal(false);
+      setToast({ show: true, message: `${selectedIds.length} rekod taman telah berjaya dipadam`, type: 'success' });
+      setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
     } catch (error) {
       console.error('Error deleting taman:', error);
       alert('Ralat semasa memadam data taman');
@@ -838,6 +847,8 @@ export default function SistemPengurusanTaman() {
       const result = await response.json();
       if (result.success) {
         setTamanList(tamanList.filter(t => t.id !== tamanToDelete));
+        setToast({ show: true, message: 'Rekod taman telah berjaya dipadam', type: 'success' });
+        setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
       }
       setTamanToDelete(null);
     } catch (error) {
@@ -1071,7 +1082,8 @@ export default function SistemPengurusanTaman() {
       setImportingTaman([]);
       
       if (errorCount === 0) {
-        alert(`✅ Semua ${successCount} taman berjaya diimport!`);
+        setToast({ show: true, message: `${successCount} taman berjaya diimport`, type: 'success' });
+        setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
       } else {
         alert(`⚠️ Import selesai: ${successCount} berjaya, ${errorCount} gagal.\n\nGagal: ${errors.join('\n')}`);
       }
@@ -1144,12 +1156,19 @@ export default function SistemPengurusanTaman() {
       
       sessionStorage.setItem('etaman_user', JSON.stringify(updatedUser));
       setCurrentUser(updatedUser);
-      alert('✅ Profil berjaya dikemaskini!');
+      setToast({ show: true, message: 'Profil berjaya dikemaskini', type: 'success' });
+      setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
       setShowProfileModal(false);
     } catch (error) {
       console.error('Error saving profile:', error);
       alert('Ralat semasa mengemaskini profil.');
     }
+  };
+
+  // Helper function to show toast from child components
+  const showToast = (message) => {
+    setToast({ show: true, message, type: 'success' });
+    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
   };
 
   return (
@@ -1462,7 +1481,7 @@ export default function SistemPengurusanTaman() {
           <LaporanStatistik tamanList={tamanList} />
         )}
         {!loading && activeTab === 'admin' && (
-          <SystemAdmin onMasterDataChange={fetchMasterDaerah} staticUsers={USERS} />
+          <SystemAdmin onMasterDataChange={fetchMasterDaerah} staticUsers={USERS} showToast={showToast} />
         )}
 
       </main>
@@ -1521,6 +1540,16 @@ export default function SistemPengurusanTaman() {
                 Padam
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed top-6 right-6 z-[60]">
+          <div className="flex items-center gap-3 bg-slate-900 text-white px-5 py-3 shadow-lg">
+            <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+            <span className="text-sm font-medium">{toast.message}</span>
           </div>
         </div>
       )}
@@ -1783,8 +1812,9 @@ function BorangTaman({ tamanSediaAda, onSave, onCancel, daerahList = [] }) {
         });
         const result = await response.json();
         if (result.success && selectedFiles.length > 0) {
-          // Upload new images if any
+          // Upload new images if any, then call onSave
           await uploadImages(tamanId, null);
+          onSave(formData);
         } else if (result.success) {
           onSave(formData);
         }
@@ -2669,46 +2699,52 @@ function ProfilTaman({ taman, onBack }) {
 
       {/* Modal Gambar Penuh */}
       {viewingImage && createPortal(
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="relative max-w-4xl w-full">
-            {/* Gambar */}
-            <img 
-              src={viewingImage.url} 
-              alt={viewingImage.caption} 
-              className="w-full h-auto shadow-2xl object-contain max-h-[85vh]"
-            />
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm">
+          {/* Header dengan butang - absolute positioning */}
+          <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-6 py-4">
+            {/* Badge/Tombol Kiri */}
+            <div>
+              {!viewingImage.is_main_cover ? (
+                <button
+                  onClick={() => {
+                    setMainCover(viewingImage.id);
+                    setViewingImage(null);
+                  }}
+                  className="bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 transition font-medium text-sm flex items-center shadow-lg"
+                  title="Tetapkan Gambar Utama"
+                >
+                  <CheckSquare className="w-5 h-5 mr-2" />
+                  Tetapkan Utama
+                </button>
+              ) : (
+                <div className="bg-blue-600 text-white px-4 py-2 shadow-lg font-medium text-sm flex items-center">
+                  <CheckSquare className="w-5 h-5 mr-2" />
+                  Gambar Utama
+                </div>
+              )}
+            </div>
 
-            {/* Tombol Tutup */}
+            {/* Butang Tutup */}
             <button
               onClick={() => setViewingImage(null)}
-              className="absolute top-4 right-4 bg-white text-slate-800 p-2 hover:bg-slate-100 transition shadow-lg"
+              className="bg-white text-slate-800 p-2 hover:bg-slate-100 transition shadow-lg"
               title="Tutup"
             >
               <X className="w-6 h-6" />
             </button>
+          </div>
 
-            {/* Tombol Set Main Cover (jika bukan main cover) */}
-            {!viewingImage.is_main_cover && (
-              <button
-                onClick={() => {
-                  setMainCover(viewingImage.id);
-                  setViewingImage(null);
-                }}
-                className="absolute top-4 left-4 bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 transition font-medium text-sm flex items-center shadow-lg"
-                title="Tetapkan Gambar Utama"
-              >
-                <CheckSquare className="w-5 h-5 mr-2" />
-                Tetapkan Utama
-              </button>
-            )}
-
-            {/* Badge Utama (jika sudah main cover) */}
-            {viewingImage.is_main_cover && (
-              <div className="absolute top-4 left-4 bg-blue-600 text-white px-4 py-2 shadow-lg font-medium text-sm flex items-center">
-                <CheckSquare className="w-5 h-5 mr-2" />
-                Gambar Utama
-              </div>
-            )}
+          {/* Container Gambar - centered with padding for header */}
+          <div className="h-screen w-screen flex items-center justify-center p-6 pt-20">
+            <img 
+              src={viewingImage.url} 
+              alt={viewingImage.caption} 
+              className="object-contain shadow-2xl"
+              style={{ 
+                maxWidth: 'calc(100vw - 48px)', 
+                maxHeight: 'calc(100vh - 120px)'
+              }}
+            />
           </div>
         </div>
       , document.body)}
@@ -3173,11 +3209,105 @@ const PBT_LOGOS = {
         </div>
       </div>
 
-    <div className="mt-8 flex justify-center">
-  <div className="w-72">
-    <Pie data={jenisChartData} />
-  </div>
-</div>
+    {/* Modern Doughnut Chart with Stats */}
+    <div className="mt-8 bg-white p-6 border border-slate-200">
+      <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wider mb-6 border-b border-slate-200 pb-2">Taburan Mengikut Jenis Taman</h3>
+      
+      <div className="flex flex-col lg:flex-row items-center gap-8">
+        {/* Doughnut Chart */}
+        <div className="relative w-64 h-64 flex-shrink-0">
+          <Doughnut 
+            data={jenisChartData} 
+            options={{
+              cutout: '60%',
+              responsive: true,
+              maintainAspectRatio: true,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: (context) => `${context.label}: ${context.parsed} (${((context.parsed / jumlahTaman) * 100).toFixed(1)}%)`
+                  }
+                }
+              }
+            }}
+          />
+          {/* Center Stats */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-3xl font-bold text-slate-800">{jumlahTaman}</span>
+            <span className="text-xs text-slate-500 uppercase tracking-wider">Jumlah</span>
+          </div>
+        </div>
+        
+        {/* Legend with percentages */}
+        <div className="flex-1 w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {taburanJenis.map(([jenis, count], idx) => {
+              const percentage = ((count / jumlahTaman) * 100).toFixed(1);
+              const colors = ['bg-blue-600', 'bg-green-600', 'bg-amber-500', 'bg-red-600', 'bg-purple-600'];
+              return (
+                <div key={jenis} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100">
+                  <div className={`w-4 h-4 ${colors[idx % colors.length]}`}></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">{jenis}</p>
+                    <p className="text-xs text-slate-500">{count} taman</p>
+                  </div>
+                  <span className="text-lg font-bold text-slate-800">{percentage}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Senarai Taman untuk PBT ini */}
+    <div className="mt-8 bg-white p-6 border border-slate-200">
+      <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wider mb-6 border-b border-slate-200 pb-2">Senarai Taman - {selectedPBT.code}</h3>
+      
+      {filteredTaman.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-100 text-slate-600 text-xs uppercase tracking-wider">
+                <th className="p-4 font-semibold">Nama Taman</th>
+                <th className="p-4 font-semibold">Daerah</th>
+                <th className="p-4 font-semibold">Jenis</th>
+                <th className="p-4 font-semibold text-right">Keluasan (Ekar)</th>
+                <th className="p-4 font-semibold">Kemudahan</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredTaman.map((taman) => (
+                <tr key={taman.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="p-4 font-medium text-slate-800 text-sm">{taman.nama}</td>
+                  <td className="p-4 text-sm text-slate-600">{taman.daerah || '-'}</td>
+                  <td className="p-4 text-sm text-slate-600">
+                    <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs">{taman.jenis || '-'}</span>
+                  </td>
+                  <td className="p-4 text-sm text-slate-800 text-right font-medium">
+                    {taman.keluasan ? parseFloat(taman.keluasan).toFixed(2) : '-'}
+                  </td>
+                  <td className="p-4">
+                    <div className="flex gap-1.5">
+                      {taman.kemudahan?.tandas && <span className="px-2 py-0.5 bg-green-50 text-green-700 text-[10px]" title="Tandas">Tandas</span>}
+                      {taman.kemudahan?.surau && <span className="px-2 py-0.5 bg-green-50 text-green-700 text-[10px]" title="Surau">Surau</span>}
+                      {taman.kemudahan?.playground && <span className="px-2 py-0.5 bg-green-50 text-green-700 text-[10px]" title="Playground">Play</span>}
+                      {taman.kemudahan?.parking && <span className="px-2 py-0.5 bg-green-50 text-green-700 text-[10px]" title="Parking">Park</span>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="text-center py-8 text-slate-500">
+          <Trees className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+          <p>Tiada rekod taman untuk {selectedPBT.code}</p>
+        </div>
+      )}
+    </div>
     </div>
     
     <div
@@ -3305,7 +3435,7 @@ import {
   Legend,
 } from 'chart.js';
 
-import { Pie, Bar, Line } from 'react-chartjs-2';
+import { Pie, Bar, Line, Doughnut } from 'react-chartjs-2';
 
 ChartJS.register(
   ArcElement,

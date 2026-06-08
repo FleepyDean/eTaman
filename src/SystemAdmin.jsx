@@ -10,7 +10,7 @@ import {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const apiUrl = (path) => `${API_BASE_URL}${path}`;
 
-export default function SystemAdmin({ onMasterDataChange, staticUsers }) {
+export default function SystemAdmin({ onMasterDataChange, staticUsers, showToast }) {
     const [activeModule, setActiveModule] = useState('master-data'); // master-data | user-accounts | audit-log
     const [loading, setLoading] = useState(false);
 
@@ -119,6 +119,7 @@ export default function SystemAdmin({ onMasterDataChange, staticUsers }) {
                 await fetchMasterData();
                 setEditingEntity(null);
                 if (activeEntity === 'daerah' && onMasterDataChange) onMasterDataChange();
+                if (showToast) showToast(editingEntity ? 'Data berjaya dikemaskini' : 'Data baharu berjaya ditambah');
             } else {
                 alert(result.error || 'Ralat menyimpan data');
             }
@@ -142,6 +143,7 @@ export default function SystemAdmin({ onMasterDataChange, staticUsers }) {
             if (result.success) {
                 await fetchMasterData();
                 setEntityToDelete(null);
+                if (showToast) showToast('Data berjaya dipadam');
             } else {
                 alert(result.error || 'Ralat memadam data');
             }
