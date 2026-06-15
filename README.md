@@ -6,7 +6,7 @@ A centralized web application developed for **Jabatan Landskap Negeri Johor (JLN
 
 ## Authentication Subsystem
 
-**Developer: MUHAMMAD AMMAR**
+**Developer: AMMAR**
 
 | Sprint | Module Name | Frontend | Backend |
 |--------|-------------|----------|---------|
