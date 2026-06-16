@@ -59,8 +59,8 @@ A centralized web application developed for **Jabatan Landskap Negeri Johor (JLN
 | Sprint | Module Name | Frontend | Backend |
 |--------|-------------|----------|---------|
 | 1 | Master Data Management Module | Components:<br>• [src/SystemAdmin.jsx](src/SystemAdmin.jsx) (`MasterDataManagement`) | Controllers:<br>• [django_backend/taman/admin_api.py](django_backend/taman/admin_api.py)<br>Models:<br>• [django_backend/taman/models.py](django_backend/taman/models.py)<br>Routes:<br>• [django_backend/taman/urls.py](django_backend/taman/urls.py) |
-| 2 | User Account Management Module | Components:<br>• [src/SystemAdmin.jsx](src/SystemAdmin.jsx) (`UserAccountManagement`) | Controllers:<br>• [django_backend/taman/admin_api.py](django_backend/taman/admin_api.py)<br>Routes:<br>• [django_backend/taman/urls.py](django_backend/taman/urls.py) |
-| 3 | Audit and Activity Log Module | Components:<br>• [src/SystemAdmin.jsx](src/SystemAdmin.jsx) (`AuditLog`) | Controllers:<br>• [django_backend/taman/admin_api.py](django_backend/taman/admin_api.py)<br>Models:<br>• [django_backend/taman/models.py](django_backend/taman/models.py)<br>Routes:<br>• [django_backend/taman/urls.py](django_backend/taman/urls.py) |
+| 2 | User Account Management Module | Components:<br>• [src/SystemAdmin.jsx](src/SystemAdmin.jsx) (`UserAccountManagement`) |  |
+| 3 | Audit and Activity Log Module | Components:<br>• [src/SystemAdmin.jsx](src/SystemAdmin.jsx) (`AuditLog`) |  |
 
 ---
 
