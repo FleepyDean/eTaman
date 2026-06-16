@@ -22,9 +22,9 @@ A centralized web application developed for **Jabatan Landskap Negeri Johor (JLN
 
 | Sprint | Module Name | Frontend | Backend |
 |--------|-------------|----------|---------|
-| 1 | Template Management Module | Components:<br>• [src/App.jsx](src/App.jsx) (`BorangTaman`) | Controllers:<br>• [django_backend/taman/api.py](django_backend/taman/api.py)<br>Models:<br>• [django_backend/taman/models.py](django_backend/taman/models.py)<br>Routes:<br>• [django_backend/taman/urls.py](django_backend/taman/urls.py) |
+| 1 | Template Management Module | Components:<br>• [src/App.jsx](src/App.jsx) (`BorangTaman`) | |
 | 2 | Drag & Drop Parser Module | Components:<br>• [src/App.jsx](src/App.jsx) (`ImportPreview`, `handleParseFile`) | Controllers:<br>• [django_backend/taman/api.py](django_backend/taman/api.py)<br>Routes:<br>• [django_backend/taman/urls.py](django_backend/taman/urls.py) |
-| 3 | Validation & Merge Engine | Components:<br>• [src/App.jsx](src/App.jsx) (`handleConfirmImport`) | Controllers:<br>• [django_backend/taman/api.py](django_backend/taman/api.py)<br>Models:<br>• [django_backend/taman/models.py](django_backend/taman/models.py) |
+| 3 | Validation & Merge Engine | Components:<br>• [src/App.jsx](src/App.jsx) (`handleConfirmImport`) | |
 
 ---
 
