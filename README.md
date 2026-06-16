@@ -56,7 +56,7 @@ A centralized web application developed for **Jabatan Landskap Negeri Johor (JLN
 
 **Developer: QISTINA**
 
-| Sprint | Module Name | Frontend | Backend |
+| No. | Module Name | Frontend | Backend |
 |--------|-------------|----------|---------|
 | 1 | Master Data Management Module | Components:<br>• [src/SystemAdmin.jsx](src/SystemAdmin.jsx) (`MasterDataManagement`) | Controllers:<br>• [django_backend/taman/admin_api.py](django_backend/taman/admin_api.py)<br>Models:<br>• [django_backend/taman/models.py](django_backend/taman/models.py)<br>Routes:<br>• [django_backend/taman/urls.py](django_backend/taman/urls.py) |
 | 2 | User Account Management Module | Components:<br>• [src/SystemAdmin.jsx](src/SystemAdmin.jsx) (`UserAccountManagement`) |  |
