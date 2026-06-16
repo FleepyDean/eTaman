@@ -47,8 +47,8 @@ A centralized web application developed for **Jabatan Landskap Negeri Johor (JLN
 | Sprint | Module Name | Frontend | Backend |
 |--------|-------------|----------|---------|
 | 1 | Park Information Module | Components:<br>• [src/App.jsx](src/App.jsx) (`ProfilTaman`)<br>• [src/App.jsx](src/App.jsx) (`SenaraiBilanganTaman`) | Controllers:<br>• [django_backend/taman/api.py](django_backend/taman/api.py)<br>Models:<br>• [django_backend/taman/models.py](django_backend/taman/models.py)<br>Routes:<br>• [django_backend/taman/urls.py](django_backend/taman/urls.py) |
-| 2 | Geo-Mapping Module | Components:<br>• [src/App.jsx](src/App.jsx) (`ProfilTaman` map iframe) | Config:<br>• [django_backend/config/settings.py](django_backend/config/settings.py) |
-| 3 | Media and Document Module | Components:<br>• [src/App.jsx](src/App.jsx) (`uploadImages`, `removeUploadedImage`, `BorangTaman`) | Controllers:<br>• [django_backend/taman/api.py](django_backend/taman/api.py)<br>Routes:<br>• [django_backend/taman/urls.py](django_backend/taman/urls.py) |
+| 2 | Geo-Mapping Module | Components:<br>• [src/App.jsx](src/App.jsx) (`ProfilTaman` map iframe) | |
+| 3 | Media and Document Module | Components:<br>• [src/App.jsx](src/App.jsx) (`uploadImages`, `removeUploadedImage`, `BorangTaman`) |  |
 
 ---
 
