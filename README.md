@@ -10,9 +10,9 @@ A centralized web application developed for **Jabatan Landskap Negeri Johor (JLN
 
 | Sprint | Module Name | Frontend | Backend |
 |--------|-------------|----------|---------|
-| 1 | Login Module | Components:<br>• [src/App.jsx](src/App.jsx) (`LoginPage`) | Backend:<br>• [django_backend/taman/views.py](django_backend/taman/views.py) |
+| 1 | Login Module | Components:<br>• [src/App.jsx](src/App.jsx) (`LoginPage`) | |
 | 2 | User Registration Module | Components:<br>• [src/App.jsx](src/App.jsx) (`RegisterPage`) | Backend:<br>• [django_backend/taman/views.py](django_backend/taman/views.py) |
-| 3 | Email Verification Module | Components:<br>• [src/App.jsx](src/App.jsx) | Config:<br>• [django_backend/config/settings.py](django_backend/config/settings.py) |
+| 3 | Email Verification Module | Components:<br>• [src/App.jsx](src/App.jsx) | |
 
 ---
 
@@ -35,8 +35,8 @@ A centralized web application developed for **Jabatan Landskap Negeri Johor (JLN
 | Sprint | Module Name | Frontend | Backend |
 |--------|-------------|----------|---------|
 | 1 | Dashboard Overview Module | Components:<br>• [src/App.jsx](src/App.jsx) (`LaporanStatistik`) | Controllers:<br>• [django_backend/taman/api.py](django_backend/taman/api.py)<br>Routes:<br>• [django_backend/taman/urls.py](django_backend/taman/urls.py) |
-| 2 | Data Filtering and Comparative Analysis Module | Components:<br>• [src/App.jsx](src/App.jsx) (`filteredTaman`, `taburanDaerah`, `taburanJenis`) | Controllers:<br>• [django_backend/taman/api.py](django_backend/taman/api.py) |
-| 3 | Reporting and Trend Analysis Module | Components:<br>• [src/App.jsx](src/App.jsx) (`generatePDF`, `jenisChartData`, `daerahChartData`) | Controllers:<br>• [django_backend/taman/api.py](django_backend/taman/api.py)<br>Config:<br>• [django_backend/config/settings.py](django_backend/config/settings.py) |
+| 2 | Data Filtering and Comparative Analysis Module | Components:<br>• [src/App.jsx](src/App.jsx) (`filteredTaman`, `taburanDaerah`, `taburanJenis`) | |
+| 3 | Reporting and Trend Analysis Module | Components:<br>• [src/App.jsx](src/App.jsx) (`generatePDF`, `jenisChartData`, `daerahChartData`) | |
 
 ---
 
