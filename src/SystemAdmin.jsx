@@ -7,6 +7,8 @@ import {
     ArrowLeft, Loader2, Save, XCircle
 } from 'lucide-react';
 
+// import { callGeminiAPI } from './gemini';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const apiUrl = (path) => `${API_BASE_URL}${path}`;
 
@@ -43,22 +45,7 @@ export default function SystemAdmin({ onMasterDataChange, staticUsers, showToast
     // ==================== FETCH DATA ON MOUNT ====================
     useEffect(() => {
         fetchMasterData();
-        if (staticUsers && staticUsers.length > 0) {
-            const mapped = staticUsers.map(u => ({
-                id: u.username,
-                name: u.displayName,
-                username: u.username,
-                email: u.username,
-                pbt: u.pbtCode || 'JLNJ',
-                role: u.role === 'JLNJ_ADMIN' ? 'JLNJ_ADMIN' : 'PBT_OFFICER',
-                status: 'active',
-                last_login: '-',
-                isSystemUser: true
-            }));
-            setUserList(mapped);
-        } else {
-            fetchUserList();
-        }
+        fetchUserList();
         fetchAuditLogs();
     }, []);
 
@@ -156,14 +143,83 @@ export default function SystemAdmin({ onMasterDataChange, staticUsers, showToast
     };
 
     // ==================== USER ACCOUNT FUNCTIONS ====================
-    const fetchUserList = async () => {
-        try {
-            const response = await fetch(apiUrl('/api/admin/users/'));
-            const result = await response.json();
-            if (result.success) setUserList(result.data);
-        } catch (error) {
-            console.error('Error fetching users:', error);
-        }
+    const fetchUserList = () => {
+        // Mock data – no API call needed
+        const mockUsers = [
+            {
+                id: 101,
+                name: 'Nadia Binti Razak',
+                username: 'nadia@jlnj.gov.my',
+                email: 'nadia@jlnj.gov.my',
+                pbt: 'JLNJ',
+                district: 'Johor Bahru',
+                role: 'JLNJ_ADMIN',
+                status: 'active',
+                last_login: '2026-06-27 09:50:12',
+                isSystemUser: false,
+            },
+            {
+                id: 102,
+                name: 'Ahmad Faisal Bin Omar',
+                username: 'ahmad@mbjb.gov.my',
+                email: 'ahmad@mbjb.gov.my',
+                pbt: 'MBJB',
+                district: 'Johor Bahru',
+                role: 'PBT_OFFICER',
+                status: 'active',
+                last_login: '2026-06-27 09:55:00',
+                isSystemUser: false,
+            },
+            {
+                id: 103,
+                name: 'Siti Nurhaliza Binti Kamal',
+                username: 'siti@mpkluang.gov.my',
+                email: 'siti@mpkluang.gov.my',
+                pbt: 'MPKluang',
+                district: 'Kluang',
+                role: 'PBT_OFFICER',
+                status: 'active',
+                last_login: '2026-06-27 09:45:30',
+                isSystemUser: false,
+            },
+            {
+                id: 104,
+                name: 'Rahim Bin Abdullah',
+                username: 'rahim@mdkl.gov.my',
+                email: 'rahim@mdkl.gov.my',
+                pbt: 'MDKT',
+                district: 'Kota Tinggi',
+                role: 'PBT_OFFICER',
+                status: 'inactive',
+                last_login: '2026-06-20 14:30:00',
+                isSystemUser: false,
+            },
+            {
+                id: 105,
+                name: 'Lim Mei Ling',
+                username: 'meiling@mpsp.gov.my',
+                email: 'meiling@mpsp.gov.my',
+                pbt: 'MPSegamat',
+                district: 'Segamat',
+                role: 'PBT_OFFICER',
+                status: 'active',
+                last_login: '2026-06-26 16:20:00',
+                isSystemUser: false,
+            },
+            {
+                id: 106,
+                name: 'Muthusamy A/L Rajendran',
+                username: 'muthu@mpmuar.gov.my',
+                email: 'muthu@mpmuar.gov.my',
+                pbt: 'MPMuar',
+                district: 'Muar',
+                role: 'PBT_OFFICER',
+                status: 'active',
+                last_login: '-',
+                isSystemUser: false,
+            },
+        ];
+        setUserList(mockUsers);
     };
 
     const filteredUsers = useMemo(() => {
@@ -183,74 +239,142 @@ export default function SystemAdmin({ onMasterDataChange, staticUsers, showToast
         setUserToToggle(user);
     };
 
-    const confirmToggleUserStatus = async () => {
+    const confirmToggleUserStatus = () => {
         if (!userToToggle) return;
-        setLoading(true);
-        try {
-            const action = userToToggle.status === 'active' ? 'deactivate' : 'activate';
-            const response = await fetch(apiUrl(`/api/admin/users/${userToToggle.id}/${action}/`), {
-                method: 'POST'
-            });
-            const result = await response.json();
-            if (result.success) {
-                await fetchUserList();
-                setUserToToggle(null);
-            } else {
-                alert(result.error || 'Ralat mengemaskini status');
-            }
-        } catch (error) {
-            console.error('Error toggling user status:', error);
-            alert('Ralat semasa mengemaskini status');
-        } finally {
-            setLoading(false);
-        }
+        const newStatus = userToToggle.status === 'active' ? 'inactive' : 'active';
+        setUserList(prev =>
+            prev.map(u =>
+                u.id === userToToggle.id ? { ...u, status: newStatus } : u
+            )
+        );
+        if (showToast) showToast(`Akaun ${newStatus === 'active' ? 'diaktifkan' : 'dinyahaktifkan'}`);
+        setUserToToggle(null);
     };
 
-    const handleAssignUserRole = async (userId, district, role) => {
-        setLoading(true);
-        try {
-            const response = await fetch(apiUrl(`/api/admin/users/${userId}/assign/`), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ district, role })
-            });
-            const result = await response.json();
-            if (result.success) {
-                await fetchUserList();
-                setEditingUser(null);
-            } else {
-                alert(result.error || 'Ralat mengemaskini pengguna');
-            }
-        } catch (error) {
-            console.error('Error assigning user:', error);
-            alert('Ralat semasa mengemaskini pengguna');
-        } finally {
-            setLoading(false);
-        }
+    const handleAssignUserRole = (userId, district, role) => {
+        setUserList(prev =>
+            prev.map(u =>
+                u.id === userId ? { ...u, district, role } : u
+            )
+        );
+        setEditingUser(null);
+        if (showToast) showToast('Daerah & peranan berjaya dikemaskini');
     };
-
     // ==================== AUDIT LOG FUNCTIONS ====================
     const fetchAuditLogs = async (page = 1) => {
         setLoading(true);
-        try {
-            let url = `/api/admin/audit-logs/?page=${page}`;
-            if (auditFilterUser) url += `&user=${auditFilterUser}`;
-            if (auditFilterAction) url += `&action=${auditFilterAction}`;
-            if (auditFilterStartDate) url += `&start_date=${auditFilterStartDate}`;
-            if (auditFilterEndDate) url += `&end_date=${auditFilterEndDate}`;
 
-            const response = await fetch(apiUrl(url));
-            const result = await response.json();
-            if (result.success) {
-                setAuditLogs(result.data);
-                setAuditPage(result.page || 1);
-                setAuditTotalPages(result.total_pages || 1);
-            }
-        } catch (error) {
-            console.error('Error fetching audit logs:', error);
-        } finally {
-            setLoading(false);
+        // ---------- MOCK DATA (remove when backend is ready) ----------
+        const mockData = [
+            {
+                id: 1,
+                user_email: 'nadia@jlnj.gov.my',
+                action_type: 'CREATE',
+                description: 'Menambah daerah baharu: Iskandar Puteri',
+                ip_address: '192.168.1.10',
+                timestamp: '2026-06-27 09:15:32',
+            },
+            {
+                id: 2,
+                user_email: 'nadia@jlnj.gov.my',
+                action_type: 'UPDATE',
+                description: 'Mengemaskini kemudahan "Tandas Awam" kepada "Tandas Awam (Dinaik Taraf)"',
+                ip_address: '192.168.1.10',
+                timestamp: '2026-06-27 09:18:05',
+            },
+            {
+                id: 3,
+                user_email: 'ahmad@mbjb.gov.my',
+                action_type: 'LOGIN',
+                description: 'Log masuk berjaya',
+                ip_address: '10.0.0.55',
+                timestamp: '2026-06-27 09:20:44',
+            },
+            {
+                id: 4,
+                user_email: 'ahmad@mbjb.gov.my',
+                action_type: 'IMPORT',
+                description: 'Mengimport 15 rekod taman dari fail Excel "Taman_Muar_2026.xlsx"',
+                ip_address: '10.0.0.55',
+                timestamp: '2026-06-27 09:25:12',
+            },
+            {
+                id: 5,
+                user_email: 'nadia@jlnj.gov.my',
+                action_type: 'DEACTIVATE',
+                description: 'Menyahaktifkan akaun PBT Officer: rahim@mdkl.gov.my',
+                ip_address: '192.168.1.10',
+                timestamp: '2026-06-27 09:30:00',
+            },
+            {
+                id: 6,
+                user_email: 'rahim@mdkl.gov.my',
+                action_type: 'LOGIN_FAILED',
+                description: 'Percubaan log masuk gagal – akaun dinyahaktifkan',
+                ip_address: '172.16.0.23',
+                timestamp: '2026-06-27 09:32:18',
+            },
+            {
+                id: 7,
+                user_email: 'nadia@jlnj.gov.my',
+                action_type: 'DELETE',
+                description: 'Memadam daerah "Labis Lama" (tidak digunakan)',
+                ip_address: '192.168.1.10',
+                timestamp: '2026-06-27 09:40:55',
+            },
+            {
+                id: 8,
+                user_email: 'siti@mpkluang.gov.my',
+                action_type: 'UPDATE',
+                description: 'Mengemaskini profil Taman Rekreasi Gunung Lambak – menukar keluasan',
+                ip_address: '10.0.1.77',
+                timestamp: '2026-06-27 09:45:30',
+            },
+            {
+                id: 9,
+                user_email: 'nadia@jlnj.gov.my',
+                action_type: 'EXPORT',
+                description: 'Mengeksport 120 rekod audit ke CSV',
+                ip_address: '192.168.1.10',
+                timestamp: '2026-06-27 09:50:12',
+            },
+            {
+                id: 10,
+                user_email: 'ahmad@mbjb.gov.my',
+                action_type: 'LOGOUT',
+                description: 'Log keluar',
+                ip_address: '10.0.0.55',
+                timestamp: '2026-06-27 09:55:00',
+            },
+        ];
+
+        // Apply client‑side filtering
+        let filtered = mockData;
+        if (auditFilterUser) {
+            filtered = filtered.filter(log => log.user_email.includes(auditFilterUser));
         }
+        if (auditFilterAction) {
+            filtered = filtered.filter(log => log.action_type === auditFilterAction);
+        }
+        if (auditFilterStartDate) {
+            filtered = filtered.filter(log => log.timestamp >= auditFilterStartDate);
+        }
+        if (auditFilterEndDate) {
+            filtered = filtered.filter(log => log.timestamp <= auditFilterEndDate + ' 23:59:59');
+        }
+
+        // Pagination
+        const perPage = 5;
+        const total = filtered.length;
+        const totalPages = Math.max(1, Math.ceil(total / perPage));
+        const start = (page - 1) * perPage;
+        const pagedData = filtered.slice(start, start + perPage);
+
+        setAuditLogs(pagedData);
+        setAuditPage(page);
+        setAuditTotalPages(totalPages);
+        setLoading(false);
+        // ---------- END MOCK DATA ----------
     };
 
     const handleAuditFilter = () => {
@@ -583,6 +707,8 @@ function UserAccountManagement({
     onToggleStatus, onConfirmToggle, onAssignRole, daerahList
 }) {
     const [assignForm, setAssignForm] = useState({ district: '', role: '' });
+    const [aiScanningUser, setAiScanningUser] = useState(null);
+    const [aiResult, setAiResult] = useState(null);
 
     const handleOpenAssign = (user) => {
         setEditingUser(user);
@@ -595,6 +721,35 @@ function UserAccountManagement({
     const handleAssignSubmit = (e) => {
         e.preventDefault();
         onAssignRole(editingUser.id, assignForm.district, assignForm.role);
+    };
+
+    const handleAiScan = async (user) => {
+        setAiScanningUser(user);
+        try {
+            // Simulate API delay (1.5 seconds)
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Mock AI logic: analyze user based on available data
+            let verdict = 'NORMAL';
+            let reason = 'Akaun ini menunjukkan corak penggunaan yang normal.';
+            
+            if (user.status === 'inactive') {
+                verdict = 'SUSPICIOUS';
+                reason = 'Akaun telah dinyahaktifkan. Perlu semakan lanjut untuk mengesahkan sama ada pengguna masih memerlukan akses.';
+            } else if (user.last_login === '-' || !user.last_login) {
+                verdict = 'SUSPICIOUS';
+                reason = 'Pengguna tidak pernah log masuk. Akaun mungkin tidak digunakan atau dicipta tanpa kebenaran.';
+            } else if (user.role === 'JLNJ_ADMIN' && user.pbt !== 'JLNJ') {
+                verdict = 'SUSPICIOUS';
+                reason = 'Pentadbir JLNJ tidak mempunyai kod PBT JLNJ. Kemungkinan akaun ini telah diubah tanpa kebenaran.';
+            }
+            
+            setAiResult({ user, verdict, reason });
+        } catch (error) {
+            alert('Gagal mengimbas dengan AI. Sila cuba lagi.');
+        } finally {
+            setAiScanningUser(null);
+        }
     };
 
     return (
@@ -683,6 +838,18 @@ function UserAccountManagement({
                                                 </span>
                                             ) : (
                                                 <>
+                                                    <button
+                                                        onClick={() => handleAiScan(user)}
+                                                        disabled={aiScanningUser?.id === user.id}
+                                                        className="p-2 text-purple-600 hover:bg-purple-50 transition rounded"
+                                                        title="Imbas AI"
+                                                    >
+                                                        {aiScanningUser?.id === user.id ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <Shield className="w-4 h-4" />
+                                                        )}
+                                                    </button>
                                                     <button
                                                         onClick={() => handleOpenAssign(user)}
                                                         className="p-2 text-blue-600 hover:bg-blue-50 transition"
@@ -775,6 +942,50 @@ function UserAccountManagement({
                             <button onClick={onConfirmToggle} className={`px-5 py-2 text-white text-sm ${userToToggle.status === 'active' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>
                                 {userToToggle.status === 'active' ? 'Nyahaktifkan' : 'Aktifkan'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        {aiResult && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white p-6 shadow-xl max-w-md w-full mx-4">
+                        <div className={`flex items-center justify-center w-12 h-12 mx-auto mb-4 ${aiResult.verdict === 'SUSPICIOUS' ? 'bg-red-100' : 'bg-green-100'}`}>
+                            {aiResult.verdict === 'SUSPICIOUS' ? (
+                                <AlertCircle className="w-6 h-6 text-red-600" />
+                            ) : (
+                                <Check className="w-6 h-6 text-green-600" />
+                            )}
+                        </div>
+                        <h3 className="text-lg font-semibold text-center text-slate-900 mb-2">
+                            Hasil Imbasan AI
+                        </h3>
+                        <p className="text-center text-slate-600 text-sm mb-2">
+                            Pengguna: <span className="font-medium">{aiResult.user.name || aiResult.user.username}</span>
+                        </p>
+                        <div className={`p-4 mb-4 text-center ${aiResult.verdict === 'SUSPICIOUS' ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}`}>
+                            <p className={`text-lg font-bold ${aiResult.verdict === 'SUSPICIOUS' ? 'text-red-700' : 'text-green-700'}`}>
+                                {aiResult.verdict === 'SUSPICIOUS' ? '⚠️ SUSPICIOUS' : '✅ NORMAL'}
+                            </p>
+                            <p className="text-sm text-slate-600 mt-1">{aiResult.reason}</p>
+                        </div>
+                        <div className="flex justify-center gap-3">
+                            <button
+                                onClick={() => setAiResult(null)}
+                                className="px-5 py-2 border border-slate-300 text-slate-700 text-sm hover:bg-slate-50"
+                            >
+                                Tutup
+                            </button>
+                            {aiResult.verdict === 'SUSPICIOUS' && aiResult.user.status === 'active' && (
+                                <button
+                                    onClick={() => {
+                                        onToggleStatus(aiResult.user);
+                                        setAiResult(null);
+                                    }}
+                                    className="px-5 py-2 bg-red-600 text-white text-sm hover:bg-red-700"
+                                >
+                                    Nyahaktifkan Akaun
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
