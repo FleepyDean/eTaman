@@ -7,10 +7,12 @@ import {
     ArrowLeft, Loader2, Save, XCircle
 } from 'lucide-react';
 
+import { callGeminiAPI } from './gemini';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const apiUrl = (path) => `${API_BASE_URL}${path}`;
 
-export default function SystemAdmin() {
+export default function SystemAdmin({ onMasterDataChange, staticUsers, showToast }) {
     const [activeModule, setActiveModule] = useState('master-data'); // master-data | user-accounts | audit-log
     const [loading, setLoading] = useState(false);
 
@@ -103,6 +105,8 @@ export default function SystemAdmin() {
             if (result.success) {
                 await fetchMasterData();
                 setEditingEntity(null);
+                if (activeEntity === 'daerah' && onMasterDataChange) onMasterDataChange();
+                if (showToast) showToast(editingEntity ? 'Data berjaya dikemaskini' : 'Data baharu berjaya ditambah');
             } else {
                 alert(result.error || 'Ralat menyimpan data');
             }
@@ -126,6 +130,7 @@ export default function SystemAdmin() {
             if (result.success) {
                 await fetchMasterData();
                 setEntityToDelete(null);
+                if (showToast) showToast('Data berjaya dipadam');
             } else {
                 alert(result.error || 'Ralat memadam data');
             }
@@ -138,22 +143,92 @@ export default function SystemAdmin() {
     };
 
     // ==================== USER ACCOUNT FUNCTIONS ====================
-    const fetchUserList = async () => {
-        try {
-            const response = await fetch(apiUrl('/api/admin/users/'));
-            const result = await response.json();
-            if (result.success) setUserList(result.data);
-        } catch (error) {
-            console.error('Error fetching users:', error);
-        }
+    const fetchUserList = () => {
+        // Mock data – no API call needed
+        const mockUsers = [
+            {
+                id: 101,
+                name: 'Nadia Binti Razak',
+                username: 'nadia@jlnj.gov.my',
+                email: 'nadia@jlnj.gov.my',
+                pbt: 'JLNJ',
+                district: 'Johor Bahru',
+                role: 'JLNJ_ADMIN',
+                status: 'active',
+                last_login: '2026-06-27 09:50:12',
+                isSystemUser: false,
+            },
+            {
+                id: 102,
+                name: 'Ahmad Faisal Bin Omar',
+                username: 'ahmad@mbjb.gov.my',
+                email: 'ahmad@mbjb.gov.my',
+                pbt: 'MBJB',
+                district: 'Johor Bahru',
+                role: 'PBT_OFFICER',
+                status: 'active',
+                last_login: '2026-06-27 09:55:00',
+                isSystemUser: false,
+            },
+            {
+                id: 103,
+                name: 'Siti Nurhaliza Binti Kamal',
+                username: 'siti@mpkluang.gov.my',
+                email: 'siti@mpkluang.gov.my',
+                pbt: 'MPKluang',
+                district: 'Kluang',
+                role: 'PBT_OFFICER',
+                status: 'active',
+                last_login: '2026-06-27 09:45:30',
+                isSystemUser: false,
+            },
+            {
+                id: 104,
+                name: 'Rahim Bin Abdullah',
+                username: 'rahim@mdkl.gov.my',
+                email: 'rahim@mdkl.gov.my',
+                pbt: 'MDKT',
+                district: 'Kota Tinggi',
+                role: 'PBT_OFFICER',
+                status: 'inactive',
+                last_login: '2026-06-20 14:30:00',
+                isSystemUser: false,
+            },
+            {
+                id: 105,
+                name: 'Lim Mei Ling',
+                username: 'meiling@mpsp.gov.my',
+                email: 'meiling@mpsp.gov.my',
+                pbt: 'MPSegamat',
+                district: 'Segamat',
+                role: 'PBT_OFFICER',
+                status: 'active',
+                last_login: '2026-06-26 16:20:00',
+                isSystemUser: false,
+            },
+            {
+                id: 106,
+                name: 'Muthusamy A/L Rajendran',
+                username: 'muthu@mpmuar.gov.my',
+                email: 'muthu@mpmuar.gov.my',
+                pbt: 'MPMuar',
+                district: 'Muar',
+                role: 'PBT_OFFICER',
+                status: 'active',
+                last_login: '-',
+                isSystemUser: false,
+            },
+        ];
+        setUserList(mockUsers);
     };
 
     const filteredUsers = useMemo(() => {
         return userList.filter(user => {
             const matchSearch = userSearchQuery === '' ||
                 user.name?.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+                user.username?.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
                 user.email?.toLowerCase().includes(userSearchQuery.toLowerCase());
-            const matchDistrict = userFilterDistrict === '' || user.district === userFilterDistrict;
+            const matchDistrict = userFilterDistrict === '' || user.pbt === userFilterDistrict || user.district === userFilterDistrict;
             const matchRole = userFilterRole === '' || user.role === userFilterRole;
             const matchStatus = userFilterStatus === '' || user.status === userFilterStatus;
             return matchSearch && matchDistrict && matchRole && matchStatus;
@@ -164,74 +239,142 @@ export default function SystemAdmin() {
         setUserToToggle(user);
     };
 
-    const confirmToggleUserStatus = async () => {
+    const confirmToggleUserStatus = () => {
         if (!userToToggle) return;
-        setLoading(true);
-        try {
-            const action = userToToggle.status === 'active' ? 'deactivate' : 'activate';
-            const response = await fetch(apiUrl(`/api/admin/users/${userToToggle.id}/${action}/`), {
-                method: 'POST'
-            });
-            const result = await response.json();
-            if (result.success) {
-                await fetchUserList();
-                setUserToToggle(null);
-            } else {
-                alert(result.error || 'Ralat mengemaskini status');
-            }
-        } catch (error) {
-            console.error('Error toggling user status:', error);
-            alert('Ralat semasa mengemaskini status');
-        } finally {
-            setLoading(false);
-        }
+        const newStatus = userToToggle.status === 'active' ? 'inactive' : 'active';
+        setUserList(prev =>
+            prev.map(u =>
+                u.id === userToToggle.id ? { ...u, status: newStatus } : u
+            )
+        );
+        if (showToast) showToast(`Akaun ${newStatus === 'active' ? 'diaktifkan' : 'dinyahaktifkan'}`);
+        setUserToToggle(null);
     };
 
-    const handleAssignUserRole = async (userId, district, role) => {
-        setLoading(true);
-        try {
-            const response = await fetch(apiUrl(`/api/admin/users/${userId}/assign/`), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ district, role })
-            });
-            const result = await response.json();
-            if (result.success) {
-                await fetchUserList();
-                setEditingUser(null);
-            } else {
-                alert(result.error || 'Ralat mengemaskini pengguna');
-            }
-        } catch (error) {
-            console.error('Error assigning user:', error);
-            alert('Ralat semasa mengemaskini pengguna');
-        } finally {
-            setLoading(false);
-        }
+    const handleAssignUserRole = (userId, district, role) => {
+        setUserList(prev =>
+            prev.map(u =>
+                u.id === userId ? { ...u, district, role } : u
+            )
+        );
+        setEditingUser(null);
+        if (showToast) showToast('Daerah & peranan berjaya dikemaskini');
     };
-
     // ==================== AUDIT LOG FUNCTIONS ====================
     const fetchAuditLogs = async (page = 1) => {
         setLoading(true);
-        try {
-            let url = `/api/admin/audit-logs/?page=${page}`;
-            if (auditFilterUser) url += `&user=${auditFilterUser}`;
-            if (auditFilterAction) url += `&action=${auditFilterAction}`;
-            if (auditFilterStartDate) url += `&start_date=${auditFilterStartDate}`;
-            if (auditFilterEndDate) url += `&end_date=${auditFilterEndDate}`;
 
-            const response = await fetch(apiUrl(url));
-            const result = await response.json();
-            if (result.success) {
-                setAuditLogs(result.data);
-                setAuditPage(result.page || 1);
-                setAuditTotalPages(result.total_pages || 1);
-            }
-        } catch (error) {
-            console.error('Error fetching audit logs:', error);
-        } finally {
-            setLoading(false);
+        // ---------- MOCK DATA (remove when backend is ready) ----------
+        const mockData = [
+            {
+                id: 1,
+                user_email: 'nadia@jlnj.gov.my',
+                action_type: 'CREATE',
+                description: 'Menambah daerah baharu: Iskandar Puteri',
+                ip_address: '192.168.1.10',
+                timestamp: '2026-06-27 09:15:32',
+            },
+            {
+                id: 2,
+                user_email: 'nadia@jlnj.gov.my',
+                action_type: 'UPDATE',
+                description: 'Mengemaskini kemudahan "Tandas Awam" kepada "Tandas Awam (Dinaik Taraf)"',
+                ip_address: '192.168.1.10',
+                timestamp: '2026-06-27 09:18:05',
+            },
+            {
+                id: 3,
+                user_email: 'ahmad@mbjb.gov.my',
+                action_type: 'LOGIN',
+                description: 'Log masuk berjaya',
+                ip_address: '10.0.0.55',
+                timestamp: '2026-06-27 09:20:44',
+            },
+            {
+                id: 4,
+                user_email: 'ahmad@mbjb.gov.my',
+                action_type: 'IMPORT',
+                description: 'Mengimport 15 rekod taman dari fail Excel "Taman_Muar_2026.xlsx"',
+                ip_address: '10.0.0.55',
+                timestamp: '2026-06-27 09:25:12',
+            },
+            {
+                id: 5,
+                user_email: 'nadia@jlnj.gov.my',
+                action_type: 'DEACTIVATE',
+                description: 'Menyahaktifkan akaun PBT Officer: rahim@mdkl.gov.my',
+                ip_address: '192.168.1.10',
+                timestamp: '2026-06-27 09:30:00',
+            },
+            {
+                id: 6,
+                user_email: 'rahim@mdkl.gov.my',
+                action_type: 'LOGIN_FAILED',
+                description: 'Percubaan log masuk gagal – akaun dinyahaktifkan',
+                ip_address: '172.16.0.23',
+                timestamp: '2026-06-27 09:32:18',
+            },
+            {
+                id: 7,
+                user_email: 'nadia@jlnj.gov.my',
+                action_type: 'DELETE',
+                description: 'Memadam daerah "Labis Lama" (tidak digunakan)',
+                ip_address: '192.168.1.10',
+                timestamp: '2026-06-27 09:40:55',
+            },
+            {
+                id: 8,
+                user_email: 'siti@mpkluang.gov.my',
+                action_type: 'UPDATE',
+                description: 'Mengemaskini profil Taman Rekreasi Gunung Lambak – menukar keluasan',
+                ip_address: '10.0.1.77',
+                timestamp: '2026-06-27 09:45:30',
+            },
+            {
+                id: 9,
+                user_email: 'nadia@jlnj.gov.my',
+                action_type: 'EXPORT',
+                description: 'Mengeksport 120 rekod audit ke CSV',
+                ip_address: '192.168.1.10',
+                timestamp: '2026-06-27 09:50:12',
+            },
+            {
+                id: 10,
+                user_email: 'ahmad@mbjb.gov.my',
+                action_type: 'LOGOUT',
+                description: 'Log keluar',
+                ip_address: '10.0.0.55',
+                timestamp: '2026-06-27 09:55:00',
+            },
+        ];
+
+        // Apply client‑side filtering
+        let filtered = mockData;
+        if (auditFilterUser) {
+            filtered = filtered.filter(log => log.user_email.includes(auditFilterUser));
         }
+        if (auditFilterAction) {
+            filtered = filtered.filter(log => log.action_type === auditFilterAction);
+        }
+        if (auditFilterStartDate) {
+            filtered = filtered.filter(log => log.timestamp >= auditFilterStartDate);
+        }
+        if (auditFilterEndDate) {
+            filtered = filtered.filter(log => log.timestamp <= auditFilterEndDate + ' 23:59:59');
+        }
+
+        // Pagination
+        const perPage = 5;
+        const total = filtered.length;
+        const totalPages = Math.max(1, Math.ceil(total / perPage));
+        const start = (page - 1) * perPage;
+        const pagedData = filtered.slice(start, start + perPage);
+
+        setAuditLogs(pagedData);
+        setAuditPage(page);
+        setAuditTotalPages(totalPages);
+        setLoading(false);
+        // ---------- END MOCK DATA ----------
     };
 
     const handleAuditFilter = () => {
@@ -250,36 +393,31 @@ export default function SystemAdmin() {
     return (
         <div className="min-h-screen bg-slate-50">
             {/* Header */}
-            <div className="bg-slate-900 text-white p-6">
-                <div className="max-w-7xl mx-auto">
-                    <h1 className="text-2xl font-semibold flex items-center gap-3">
-                        <Settings className="w-7 h-7 text-blue-400" />
-                        PENTADBIRAN SISTEM
-                    </h1>
-                    <p className="text-slate-400 text-sm mt-1">Pengurusan data induk, akaun pengguna, dan log audit</p>
-                </div>
-            </div>
-
-            {/* Navigation Tabs */}
-            <div className="bg-white border-b border-slate-200">
-                <div className="max-w-7xl mx-auto flex">
-                    {[
-                        { key: 'master-data', icon: Database, label: 'Data Induk' },
-                        { key: 'user-accounts', icon: Users, label: 'Akaun Pengguna' },
-                        { key: 'audit-log', icon: Shield, label: 'Log Audit' }
-                    ].map(tab => (
-                        <button
-                            key={tab.key}
-                            onClick={() => setActiveModule(tab.key)}
-                            className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeModule === tab.key
-                                    ? 'border-blue-600 text-blue-700 bg-blue-50'
-                                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                                }`}
-                        >
-                            <tab.icon className="w-4 h-4" />
-                            {tab.label}
-                        </button>
-                    ))}
+            <div className="space-y-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-slate-200">
+                    <div>
+                        <h2 className="text-xl font-semibold text-slate-900 tracking-tight">PENTADBIRAN SISTEM</h2>
+                        <p className="text-sm text-slate-500 mt-1">Pengurusan data utama, akaun pengguna dan log audit</p>
+                    </div>
+                    <div className="flex gap-0">
+                        {[
+                            { key: 'master-data', icon: Database, label: 'Data Utama' },
+                            { key: 'user-accounts', icon: Users, label: 'Akaun Pengguna' },
+                            { key: 'audit-log', icon: Shield, label: 'Log Audit' }
+                        ].map(tab => (
+                            <button
+                                key={tab.key}
+                                onClick={() => setActiveModule(tab.key)}
+                                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeModule === tab.key
+                                        ? 'border-blue-600 text-blue-700 bg-blue-50'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                    }`}
+                            >
+                                <tab.icon className="w-4 h-4" />
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 
@@ -351,6 +489,15 @@ export default function SystemAdmin() {
                     />
                 )}
             </div>
+            {/* Delete Confirmation Modal - rendered at top level to cover full viewport */}
+            {entityToDelete && (
+                <DeleteConfirmationModal
+                    title="Sahkan Padaman"
+                    message={`Adakah anda pasti mahu memadam ${getEntityLabel(activeEntity).toLowerCase()} "${entityToDelete.nama}"?`}
+                    onConfirm={handleDeleteEntity}
+                    onCancel={() => setEntityToDelete(null)}
+                />
+            )}
         </div>
     );
 }
@@ -365,6 +512,7 @@ function MasterDataManagement({
 }) {
     const [formData, setFormData] = useState({ nama: '', keterangan: '', kategori: '' });
     const [searchQuery, setSearchQuery] = useState('');
+    const [showAddForm, setShowAddForm] = useState(false);
 
     const filteredList = useMemo(() => {
         if (!searchQuery) return entityList;
@@ -374,6 +522,7 @@ function MasterDataManagement({
     }, [entityList, searchQuery]);
 
     const handleEdit = (entity) => {
+        setShowAddForm(true);
         setEditingEntity(entity);
         setFormData({
             nama: entity.nama || '',
@@ -386,6 +535,7 @@ function MasterDataManagement({
         e.preventDefault();
         onSave(formData);
         setFormData({ nama: '', keterangan: '', kategori: '' });
+        setShowAddForm(false);
     };
 
     const entityTabs = [
@@ -397,11 +547,12 @@ function MasterDataManagement({
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-slate-900">Pengurusan Data Induk</h2>
+                <h2 className="text-lg font-semibold text-slate-900">Pengurusan Data Utama</h2>
                 <button
                     onClick={() => {
                         setEditingEntity(null);
                         setFormData({ nama: '', keterangan: '', kategori: '' });
+                        setShowAddForm(true);
                     }}
                     className="flex items-center gap-2 bg-blue-700 text-white px-4 py-2 text-sm font-medium hover:bg-blue-800 transition-colors"
                 >
@@ -418,6 +569,8 @@ function MasterDataManagement({
                         onClick={() => {
                             setActiveEntity(tab.key);
                             setEditingEntity(null);
+                            setFormData({ nama: '', keterangan: '', kategori: '' });
+                            setShowAddForm(false);
                             setSearchQuery('');
                         }}
                         className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeEntity === tab.key
@@ -431,7 +584,7 @@ function MasterDataManagement({
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className={`grid grid-cols-1 gap-6 ${showAddForm ? 'lg:grid-cols-3' : ''}`}>
                 {/* Entity List */}
                 <div className="lg:col-span-2 bg-white border border-slate-200">
                     <div className="p-4 border-b border-slate-200">
@@ -446,34 +599,49 @@ function MasterDataManagement({
                             />
                         </div>
                     </div>
-                    <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
-                        {filteredList.length > 0 ? filteredList.map((entity, idx) => (
-                            <div key={entity.id || idx} className="flex items-center justify-between p-4 hover:bg-slate-50">
-                                <div>
-                                    <p className="font-medium text-slate-800 text-sm">{entity.nama}</p>
-                                    {entity.keterangan && <p className="text-xs text-slate-500 mt-0.5">{entity.keterangan}</p>}
-                                    {entity.kategori && <p className="text-xs text-slate-500 mt-0.5">{entity.kategori}</p>}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className={`px-2 py-0.5 text-xs ${entity.status === 'Inactive' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                                        {entity.status || 'Active'}
-                                    </span>
-                                    <button onClick={() => handleEdit(entity)} className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition">
-                                        <Edit className="w-4 h-4" />
-                                    </button>
-                                    <button onClick={() => setEntityToDelete(entity)} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 transition">
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
-                        )) : (
-                            <div className="p-8 text-center text-slate-400 text-sm">Tiada data {entityLabel.toLowerCase()}.</div>
-                        )}
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-slate-100 text-slate-600 text-xs uppercase tracking-wider border-b border-slate-200">
+                                    <th className="p-4 font-semibold">{entityLabel}</th>
+                                    {activeEntity === 'status-tanah' && <th className="p-4 font-semibold">Keterangan</th>}
+                                    <th className="p-4 font-semibold text-right">Tindakan</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {filteredList.length > 0 ? filteredList.map((entity, idx) => (
+                                    <tr key={entity.id || idx} className="hover:bg-slate-50 transition-colors">
+                                        <td className="p-4">
+                                            <p className="font-medium text-slate-800 text-sm">{entity.nama}</p>
+                                        </td>
+                                        {activeEntity === 'status-tanah' && (
+                                            <td className="p-4 text-sm text-slate-500">{entity.keterangan || '-'}</td>
+                                        )}
+                                        <td className="p-4 text-right">
+                                            <div className="flex items-center justify-end gap-1">
+                                                <button onClick={() => handleEdit(entity)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition rounded">
+                                                    <Edit className="w-4 h-4" />
+                                                </button>
+                                                <button onClick={() => setEntityToDelete(entity)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 transition rounded">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )) : (
+                                    <tr>
+                                        <td colSpan={activeEntity === 'status-tanah' ? 3 : 2} className="p-8 text-center text-slate-400 text-sm">
+                                            Tiada data {entityLabel.toLowerCase()}.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
                 {/* Add/Edit Form */}
-                <div className="bg-white border border-slate-200 p-6 h-fit">
+                {showAddForm && <div className="bg-white border border-slate-200 p-6 h-fit">
                     <h3 className="text-sm font-semibold text-slate-900 mb-4">
                         {editingEntity ? `Kemaskini ${entityLabel}` : `Tambah ${entityLabel} Baharu`}
                     </h3>
@@ -501,22 +669,6 @@ function MasterDataManagement({
                                 />
                             </div>
                         )}
-                        {activeEntity === 'facility' && (
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Kategori</label>
-                                <select
-                                    value={formData.kategori}
-                                    onChange={(e) => setFormData({ ...formData, kategori: e.target.value })}
-                                    className="w-full px-3 py-2 border border-slate-300 text-sm focus:outline-none focus:border-blue-500 bg-white"
-                                >
-                                    <option value="">Pilih Kategori</option>
-                                    <option value="Sukan">Sukan</option>
-                                    <option value="Rekreasi">Rekreasi</option>
-                                    <option value="Infrastruktur">Infrastruktur</option>
-                                    <option value="Keagamaan">Keagamaan</option>
-                                </select>
-                            </div>
-                        )}
                         <div className="flex gap-2 pt-2">
                             <button
                                 type="submit"
@@ -524,32 +676,22 @@ function MasterDataManagement({
                             >
                                 {editingEntity ? 'Kemaskini' : 'Simpan'}
                             </button>
-                            {editingEntity && (
-                                <button
+                            <button
                                     type="button"
                                     onClick={() => {
                                         setEditingEntity(null);
                                         setFormData({ nama: '', keterangan: '', kategori: '' });
+                                        setShowAddForm(false);
                                     }}
                                     className="px-4 py-2 border border-slate-300 text-slate-700 text-sm hover:bg-slate-50 transition-colors"
                                 >
                                     Batal
                                 </button>
-                            )}
                         </div>
                     </form>
-                </div>
+                </div>}
             </div>
 
-            {/* Delete Confirmation Modal */}
-            {entityToDelete && (
-                <DeleteConfirmationModal
-                    title="Sahkan Padaman"
-                    message={`Adakah anda pasti mahu memadam ${entityLabel.toLowerCase()} "${entityToDelete.nama}"?`}
-                    onConfirm={onDelete}
-                    onCancel={() => setEntityToDelete(null)}
-                />
-            )}
         </div>
     );
 }
@@ -565,6 +707,8 @@ function UserAccountManagement({
     onToggleStatus, onConfirmToggle, onAssignRole, daerahList
 }) {
     const [assignForm, setAssignForm] = useState({ district: '', role: '' });
+    const [aiScanningUser, setAiScanningUser] = useState(null);
+    const [aiResult, setAiResult] = useState(null);
 
     const handleOpenAssign = (user) => {
         setEditingUser(user);
@@ -577,6 +721,35 @@ function UserAccountManagement({
     const handleAssignSubmit = (e) => {
         e.preventDefault();
         onAssignRole(editingUser.id, assignForm.district, assignForm.role);
+    };
+
+    const handleAiScan = async (user) => {
+        setAiScanningUser(user);
+        try {
+            // Simulate API delay (1.5 seconds)
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Mock AI logic: analyze user based on available data
+            let verdict = 'NORMAL';
+            let reason = 'Akaun ini menunjukkan corak penggunaan yang normal.';
+            
+            if (user.status === 'inactive') {
+                verdict = 'SUSPICIOUS';
+                reason = 'Akaun telah dinyahaktifkan. Perlu semakan lanjut untuk mengesahkan sama ada pengguna masih memerlukan akses.';
+            } else if (user.last_login === '-' || !user.last_login) {
+                verdict = 'SUSPICIOUS';
+                reason = 'Pengguna tidak pernah log masuk. Akaun mungkin tidak digunakan atau dicipta tanpa kebenaran.';
+            } else if (user.role === 'JLNJ_ADMIN' && user.pbt !== 'JLNJ') {
+                verdict = 'SUSPICIOUS';
+                reason = 'Pentadbir JLNJ tidak mempunyai kod PBT JLNJ. Kemungkinan akaun ini telah diubah tanpa kebenaran.';
+            }
+            
+            setAiResult({ user, verdict, reason });
+        } catch (error) {
+            alert('Gagal mengimbas dengan AI. Sila cuba lagi.');
+        } finally {
+            setAiScanningUser(null);
+        }
     };
 
     return (
@@ -601,8 +774,10 @@ function UserAccountManagement({
                         onChange={(e) => setUserFilterDistrict(e.target.value)}
                         className="w-full px-3 py-2 border border-slate-300 text-sm focus:outline-none focus:border-blue-500 bg-white"
                     >
-                        <option value="">Semua Daerah</option>
-                        {daerahList.map(d => <option key={d.id || d.nama} value={d.nama}>{d.nama}</option>)}
+                        <option value="">Semua PBT</option>
+                        {[...new Set(users.map(u => u.pbt || u.district).filter(Boolean))].sort().map(pbt => (
+                            <option key={pbt} value={pbt}>{pbt}</option>
+                        ))}
                     </select>
                     <select
                         value={userFilterRole}
@@ -631,21 +806,20 @@ function UserAccountManagement({
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-100 text-slate-600 text-xs uppercase tracking-wider">
-                                <th className="p-4 font-semibold">Nama</th>
-                                <th className="p-4 font-semibold">Emel</th>
-                                <th className="p-4 font-semibold">Daerah</th>
+                                <th className="p-4 font-semibold">Nama Pengguna</th>
+                                <th className="p-4 font-semibold">Nama Paparan</th>
+                                <th className="p-4 font-semibold">PBT</th>
                                 <th className="p-4 font-semibold">Peranan</th>
                                 <th className="p-4 font-semibold">Status</th>
-                                <th className="p-4 font-semibold">Log Masuk Terakhir</th>
                                 <th className="p-4 font-semibold text-right">Tindakan</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {users.length > 0 ? users.map(user => (
                                 <tr key={user.id} className="hover:bg-slate-50">
+                                    <td className="p-4 font-mono text-sm text-slate-800 font-medium">{user.username || user.email || '-'}</td>
                                     <td className="p-4 font-medium text-slate-900 text-sm">{user.name || user.nama || '-'}</td>
-                                    <td className="p-4 text-sm text-slate-600">{user.email}</td>
-                                    <td className="p-4 text-sm text-slate-600">{user.district || '-'}</td>
+                                    <td className="p-4 text-sm text-slate-600">{user.pbt || user.district || '-'}</td>
                                     <td className="p-4">
                                         <span className={`px-2 py-0.5 text-xs font-medium ${user.role === 'JLNJ_ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
                                             {user.role === 'JLNJ_ADMIN' ? 'JLNJ Admin' : 'PBT Officer'}
@@ -656,23 +830,42 @@ function UserAccountManagement({
                                             {user.status === 'active' ? 'Aktif' : 'Tidak Aktif'}
                                         </span>
                                     </td>
-                                    <td className="p-4 text-sm text-slate-500">{user.last_login || '-'}</td>
                                     <td className="p-4 text-right">
                                         <div className="flex justify-end gap-1">
-                                            <button
-                                                onClick={() => handleOpenAssign(user)}
-                                                className="p-2 text-blue-600 hover:bg-blue-50 transition"
-                                                title="Tukar Daerah & Peranan"
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => onToggleStatus(user)}
-                                                className={`p-2 transition ${user.status === 'active' ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}
-                                                title={user.status === 'active' ? 'Nyahaktifkan' : 'Aktifkan'}
-                                            >
-                                                {user.status === 'active' ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                            </button>
+                                            {user.isSystemUser ? (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 text-xs text-slate-400 border border-slate-200 bg-slate-50" title="Akaun diurus oleh sistem">
+                                                    <Shield className="w-3 h-3" /> Sistem
+                                                </span>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        onClick={() => handleAiScan(user)}
+                                                        disabled={aiScanningUser?.id === user.id}
+                                                        className="p-2 text-purple-600 hover:bg-purple-50 transition rounded"
+                                                        title="Imbas AI"
+                                                    >
+                                                        {aiScanningUser?.id === user.id ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <Shield className="w-4 h-4" />
+                                                        )}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleOpenAssign(user)}
+                                                        className="p-2 text-blue-600 hover:bg-blue-50 transition"
+                                                        title="Tukar Daerah & Peranan"
+                                                    >
+                                                        <Edit className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => onToggleStatus(user)}
+                                                        className={`p-2 transition ${user.status === 'active' ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}
+                                                        title={user.status === 'active' ? 'Nyahaktifkan' : 'Aktifkan'}
+                                                    >
+                                                        {user.status === 'active' ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -749,6 +942,50 @@ function UserAccountManagement({
                             <button onClick={onConfirmToggle} className={`px-5 py-2 text-white text-sm ${userToToggle.status === 'active' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>
                                 {userToToggle.status === 'active' ? 'Nyahaktifkan' : 'Aktifkan'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        {aiResult && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white p-6 shadow-xl max-w-md w-full mx-4">
+                        <div className={`flex items-center justify-center w-12 h-12 mx-auto mb-4 ${aiResult.verdict === 'SUSPICIOUS' ? 'bg-red-100' : 'bg-green-100'}`}>
+                            {aiResult.verdict === 'SUSPICIOUS' ? (
+                                <AlertCircle className="w-6 h-6 text-red-600" />
+                            ) : (
+                                <Check className="w-6 h-6 text-green-600" />
+                            )}
+                        </div>
+                        <h3 className="text-lg font-semibold text-center text-slate-900 mb-2">
+                            Hasil Imbasan AI
+                        </h3>
+                        <p className="text-center text-slate-600 text-sm mb-2">
+                            Pengguna: <span className="font-medium">{aiResult.user.name || aiResult.user.username}</span>
+                        </p>
+                        <div className={`p-4 mb-4 text-center ${aiResult.verdict === 'SUSPICIOUS' ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}`}>
+                            <p className={`text-lg font-bold ${aiResult.verdict === 'SUSPICIOUS' ? 'text-red-700' : 'text-green-700'}`}>
+                                {aiResult.verdict === 'SUSPICIOUS' ? '⚠️ SUSPICIOUS' : '✅ NORMAL'}
+                            </p>
+                            <p className="text-sm text-slate-600 mt-1">{aiResult.reason}</p>
+                        </div>
+                        <div className="flex justify-center gap-3">
+                            <button
+                                onClick={() => setAiResult(null)}
+                                className="px-5 py-2 border border-slate-300 text-slate-700 text-sm hover:bg-slate-50"
+                            >
+                                Tutup
+                            </button>
+                            {aiResult.verdict === 'SUSPICIOUS' && aiResult.user.status === 'active' && (
+                                <button
+                                    onClick={() => {
+                                        onToggleStatus(aiResult.user);
+                                        setAiResult(null);
+                                    }}
+                                    className="px-5 py-2 bg-red-600 text-white text-sm hover:bg-red-700"
+                                >
+                                    Nyahaktifkan Akaun
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
