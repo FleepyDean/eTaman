@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+django_backend
+*.md
+PRESENTATION.md
+POWERPOINT_GUIDE.md
+README.md
+generate_slides.py
+eTaman_Presentation.pptx
+.env
+.env.local

@@ -9,7 +9,7 @@ import {
 
 // import { callGeminiAPI } from './gemini';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000');
 const apiUrl = (path) => `${API_BASE_URL}${path}`;
 
 export default function SystemAdmin({ onMasterDataChange, staticUsers, showToast }) {

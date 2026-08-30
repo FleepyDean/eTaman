@@ -17,7 +17,7 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import SystemAdmin from './SystemAdmin';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000');
 const apiUrl = (path) => `${API_BASE_URL}${path}`;
 
 // --- UTILITI API GEMINI ---
@@ -56,6 +56,12 @@ const callGeminiAPI = async (prompt) => {
 };
 
 const FACILITIES = ['tandas', 'surau', 'playground', 'parking'];
+const KEMUDAHAN_LABELS = {
+  tandas: 'Tandas',
+  playground: 'Taman Permainan',
+  parking: 'Tempat Letak Kereta',
+  surau: 'Surau / Tempat Ibadat'
+};
 const JENIS_TAMAN_AI = ['taman tempatan', 'taman rekreasi', 'taman botani', 'taman awam', 'taman bandar', 'hutan bandar', 'taman'];
 const PBT_LOOKUP = [
   { code: 'MBJB', names: ['mbjb', 'majlis bandaraya johor bahru'] },
@@ -537,20 +543,6 @@ function LoginPage({ onLogin, onSwitchToRegister, onSwitchToForgot, onSwitchToVe
           </div>
           
 
-          {/* Role hint */}
-          <div className="mt-6 pt-5 border-t border-slate-100 space-y-2">
-            <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Akaun Ujian</p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="bg-blue-50 border border-blue-100 px-3 py-2">
-                <p className="font-semibold text-blue-800 flex items-center gap-1"><Shield className="w-3 h-3" /> Admin JLNJ</p>
-                <p className="text-blue-600 mt-0.5">adminjlnj / admin123</p>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 px-3 py-2">
-                <p className="font-semibold text-slate-700">Pegawai PBT</p>
-                <p className="text-slate-500 mt-0.5">pbtmbjb / pbt123</p>
-              </div>
-            </div>
-          </div>
         </div>
 
         <p className="text-center text-slate-600 text-xs mt-6">
@@ -1713,7 +1705,7 @@ export default function SistemPengurusanTaman() {
                       onChange={(e) => setFilterKemudahan({...filterKemudahan, [key]: e.target.checked})}
                       className="rounded-sm text-blue-700 focus:ring-blue-500"
                     />
-                    <span className="capitalize text-slate-600">{key}</span>
+                    <span className="text-slate-600">{KEMUDAHAN_LABELS[key]}</span>
                   </label>
                 ))}
                 {(searchQuery || filterDaerah || filterJenis || filterPBT || Object.values(filterKemudahan).some(Boolean)) && (
@@ -1803,10 +1795,10 @@ export default function SistemPengurusanTaman() {
                         </td>
                         <td className="p-4 text-center">
                           <div className="flex justify-center gap-2">
-                            {taman.kemudahan.tandas && <Toilet className="w-4 h-4 text-blue-600" title="Tandas" />}
-                            {taman.kemudahan.playground && <PlayCircle className="w-4 h-4 text-blue-600" title="Taman Permainan" />}
-                            {taman.kemudahan.parking && <ParkingSquare className="w-4 h-4 text-blue-600" title="Tempat Letak Kereta" />}
-                            {taman.kemudahan.surau && <Building2 className="w-4 h-4 text-blue-600" title="Surau" />}
+                            {taman.kemudahan.tandas && <Toilet className="w-4 h-4 text-blue-600" title={KEMUDAHAN_LABELS.tandas} />}
+                            {taman.kemudahan.playground && <PlayCircle className="w-4 h-4 text-blue-600" title={KEMUDAHAN_LABELS.playground} />}
+                            {taman.kemudahan.parking && <ParkingSquare className="w-4 h-4 text-blue-600" title={KEMUDAHAN_LABELS.parking} />}
+                            {taman.kemudahan.surau && <Building2 className="w-4 h-4 text-blue-600" title={KEMUDAHAN_LABELS.surau} />}
                           </div>
                         </td>
                         <td className="p-4 text-right">
@@ -3041,10 +3033,10 @@ function ProfilTaman({ taman, onBack }) {
               <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-2">Status Kemudahan</h3>
               <ul className="space-y-3">
                 {[
-                  { key: 'tandas', icon: Toilet, label: 'Tandas Awam' },
+                  { key: 'tandas', icon: Toilet, label: 'Tandas' },
                   { key: 'playground', icon: PlayCircle, label: 'Taman Permainan' },
                   { key: 'parking', icon: ParkingSquare, label: 'Tempat Letak Kereta' },
-                  { key: 'surau', icon: Building2, label: 'Surau' }
+                  { key: 'surau', icon: Building2, label: 'Surau / Tempat Ibadat' }
                 ]
                   .sort((a, b) => (taman.kemudahan[b.key] ? 1 : 0) - (taman.kemudahan[a.key] ? 1 : 0))
                   .map(({ key, icon: Icon, label }) => {
