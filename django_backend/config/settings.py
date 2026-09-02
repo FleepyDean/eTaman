@@ -34,6 +34,7 @@ if os.getenv('RAILWAY_PUBLIC_DOMAIN'):
 ALLOWED_HOSTS += ['.railway.app', '.railway.internal']
 
 USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition
