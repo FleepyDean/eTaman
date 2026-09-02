@@ -7,11 +7,11 @@ from .models import Taman, TamanImage
 
 
 def get_absolute_image_url(request, image_path):
-    """Build absolute URL for image"""
+    """Build image URL. Returns a relative /media/ path so the browser resolves
+    it through the frontend Nginx proxy, avoiding mixed-content or host issues."""
     if not image_path:
         return None
-    base_url = request.build_absolute_uri('/').rstrip('/')
-    return f"{base_url}{image_path}"
+    return image_path
 
 
 def serialize_taman(taman, request=None):
