@@ -30,6 +30,10 @@ ALLOWED_HOSTS = [host.strip() for host in os.getenv('DJANGO_ALLOWED_HOSTS', 'loc
 # Railway auto-sets PORT and RAILWAY_PUBLIC_DOMAIN
 if os.getenv('RAILWAY_PUBLIC_DOMAIN'):
     ALLOWED_HOSTS.append(os.getenv('RAILWAY_PUBLIC_DOMAIN'))
+# Allow any Railway internal/app domain
+ALLOWED_HOSTS += ['.railway.app', '.railway.internal']
+
+USE_X_FORWARDED_HOST = True
 
 
 # Application definition
