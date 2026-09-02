@@ -1,4 +1,6 @@
 #!/bin/sh
-# Substitute BACKEND_HOST env var into nginx config at runtime
-sed -i "s/\${BACKEND_HOST}/${BACKEND_HOST:-backend.railway.internal}/g" /etc/nginx/conf.d/default.conf
+# Substitute BACKEND_URL env var into nginx config at runtime
+# Default to backend's public Railway domain
+BACKEND_URL="${BACKEND_URL:-http://backend.railway.internal:8000}"
+sed -i "s|\${BACKEND_URL}|${BACKEND_URL}|g" /etc/nginx/conf.d/default.conf
 exec nginx -g "daemon off;"
