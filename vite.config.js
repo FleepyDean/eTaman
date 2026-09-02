@@ -6,17 +6,19 @@ export default defineConfig({
   plugins: [react()],
   build: {
     target: 'esnext',
-    minify: 'terser',
+    minify: true,
     sourcemap: false,
     outDir: 'dist',
     assetsDir: 'assets',
     cssCodeSplit: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          icons: ['lucide-react'],
-          utils: ['papaparse', 'xlsx']
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom')) return 'vendor';
+            if (id.includes('lucide-react')) return 'icons';
+            if (id.includes('papaparse') || id.includes('xlsx')) return 'utils';
+          }
         }
       }
     }
